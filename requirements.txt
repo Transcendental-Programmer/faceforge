@@ -6,3 +6,4 @@ fastapi
 gradio==4.44.1
 pytest
 scikit-learn
+transformers 
