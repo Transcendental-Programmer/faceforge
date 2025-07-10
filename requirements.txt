@@ -2,3 +2,7 @@ diffusers
 pygame
 torch
 torchvision
+fastapi
+gradio
+pytest
+scikit-learn
