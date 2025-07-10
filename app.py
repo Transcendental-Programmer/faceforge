@@ -17,8 +17,8 @@ logging.basicConfig(
 
 logger = logging.getLogger("faceforge")
 
-def main():
-    """Main function to start the FaceForge application."""
+def create_app():
+    """Creates and configures the integrated FastAPI application with both API and UI components."""
     try:
         # Apply the patch for Gradio
         logger.info("Applying Gradio patch...")
@@ -32,21 +32,53 @@ def main():
             logger.warning(f"Error applying Gradio patch: {e}")
             logger.debug(traceback.format_exc())
         
-        # Import and run the UI app by default for HF Spaces
-        logger.info("Starting in UI mode for Hugging Face Spaces")
+        # Set up FastAPI application with both API and UI
+        logger.info("Setting up FastAPI application with API and UI for Hugging Face Spaces")
+        from fastapi import FastAPI
+        from fastapi.middleware.cors import CORSMiddleware
+        import gradio as gr
+        
+        # Import the API and UI components
+        from faceforge_api.main import app as api_app
         from faceforge_ui.app import create_demo
+        
+        # Create a new FastAPI application that will serve as the main app
+        app = FastAPI(title="FaceForge")
+        
+        # Add CORS middleware
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        
+        # Mount the API under /api
+        logger.info("Mounting API at /api")
+        app.mount("/api", api_app)
+        
+        # Create Gradio UI
+        logger.info("Creating Gradio UI")
         demo = create_demo()
-        demo.launch(server_name="0.0.0.0", share=False)
-            
-    except ImportError as e:
-        logger.critical(f"Import error: {e}. Please check your dependencies.")
-        logger.debug(traceback.format_exc())
-        sys.exit(1)
+        
+        # Mount Gradio UI
+        logger.info("Mounting Gradio UI")
+        gr_app = gr.mount_gradio_app(app, demo, path="/")
+        
+        return app
     except Exception as e:
-        logger.critical(f"Unexpected error: {e}")
+        logger.critical(f"Failed to create app: {e}")
         logger.debug(traceback.format_exc())
-        sys.exit(1)
+        raise
 
-# This module is imported by Hugging Face Spaces
+# Create the app for Hugging Face Spaces
+# This is the entry point that Hugging Face Spaces will use
+app = create_app()
+
 if __name__ == "__main__":
-    main() 
+    # If this file is run directly, start the server
+    import uvicorn
+    port = int(os.environ.get("PORT", 7860))
+    logger.info(f"Starting integrated server on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port) 

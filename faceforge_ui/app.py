@@ -23,7 +23,9 @@ logging.getLogger("gradio").setLevel(logging.DEBUG)
 logging.getLogger("gradio_client").setLevel(logging.DEBUG)
 
 # API configuration
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
+# In HF Spaces, we need to use a relative path since both UI and API run on the same server
+# For local development with separate servers, the env var can be set to http://localhost:8000
+API_URL = os.environ.get("API_URL", "/api")
 logger.info(f"Using API URL: {API_URL}")
 
 def generate_image(prompts, mode, player_x, player_y):
@@ -48,7 +50,24 @@ def generate_image(prompts, mode, player_x, player_y):
         
         # Make API call
         try:
-            resp = requests.post(f"{API_URL}/generate", json=req, timeout=30)
+            # For debugging/testing, create a mock image if API is not available
+            if API_URL == "/api" and os.environ.get("MOCK_API", "false").lower() == "true":
+                logger.debug("Using mock API response")
+                # Create a test image
+                img = Image.new("RGB", (256, 256), (int(player_x*128)+128, 100, int(player_y*128)+128))
+                return img, "Image generated using mock API"
+                
+            # Determine the base URL for the API
+            if API_URL.startswith("/"):
+                # Relative URL, construct the full URL based on the request context
+                # For Gradio apps, we'll just use a relative path
+                base_url = API_URL
+            else:
+                # Absolute URL, use as is
+                base_url = API_URL
+                
+            logger.debug(f"Making request to: {base_url}/generate")
+            resp = requests.post(f"{base_url}/generate", json=req, timeout=30)
             logger.debug(f"API response status: {resp.status_code}")
             
             if resp.ok:
@@ -89,7 +108,10 @@ def generate_image(prompts, mode, player_x, player_y):
                 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")
-            return None, f"Request failed: {str(e)}"
+            # Fall back to a test image
+            logger.debug("Falling back to test image")
+            img = Image.new("RGB", (256, 256), (int(player_x*128)+128, 100, int(player_y*128)+128))
+            return img, f"API connection failed (using test image): {str(e)}"
             
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

@@ -49,7 +49,13 @@ class AttributeDirectionRequest(BaseModel):
 
 # --- FastAPI app ---
 
-app = FastAPI()
+app = FastAPI(
+    title="FaceForge API",
+    description="API for latent space exploration and manipulation",
+    version="1.0.0",
+    # Important: set root_path to empty to ensure routes work correctly when mounted under /api
+    root_path=""
+)
 
 # Add CORS middleware to allow requests from any origin
 app.add_middleware(
@@ -78,7 +84,7 @@ async def error_handling_middleware(request: Request, call_next):
 
 @app.get("/")
 def read_root():
-    logger.debug("Root endpoint called")
+    logger.debug("API root endpoint called")
     return {"message": "FaceForge API is running"}
 
 @app.post("/generate")

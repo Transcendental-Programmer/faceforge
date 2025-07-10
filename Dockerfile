@@ -21,6 +21,8 @@ EXPOSE 7860
 # Set environment variables
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
+ENV API_URL="/api"
+ENV MOCK_API="false"
 
 # Start app (with the patch applied)
-CMD ["python", "main.py"] 
+CMD ["python", "app.py"] 
