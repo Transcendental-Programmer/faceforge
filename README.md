@@ -1,3 +1,14 @@
+---
+title: FaceForge
+emoji: 🧑‍🎨
+colorFrom: indigo
+colorTo: pink
+sdk: gradio
+sdk_version: "4.27.0"
+app_file: faceforge_ui/app.py
+pinned: false
+---
+
 # faceforge
 Interactive latent space editor for face generation using pretrained GANs and diffusion models.
 
