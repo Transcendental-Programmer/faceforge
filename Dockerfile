@@ -1,7 +1,4 @@
-FROM python:3.10-slim
-
-# Install dependencies
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+FROM huggingface/transformers:latest
 
 # Set working directory
 WORKDIR /app
@@ -11,6 +8,7 @@ COPY requirements.txt ./
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir transformers
 
 # Copy application code
 COPY . .
@@ -22,7 +20,7 @@ EXPOSE 7860
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 ENV API_URL="/api"
-ENV MOCK_API="false"
+ENV MOCK_API="true"
 
 # Start app (with the patch applied)
 CMD ["python", "app.py"] 

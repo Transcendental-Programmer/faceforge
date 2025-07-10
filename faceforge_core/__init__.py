@@ -1,19 +1,46 @@
 from typing import List
+import logging
 
-from dataclasses import dataclass
-from .fast_sd import fast_diffusion_pipeline
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("faceforge_core")
 
-import torch
-import pygame
-import numpy as np
-import time
-from PIL import Image
+try:
+    from .latent_explorer import LatentSpaceExplorer
+    from .attribute_directions import LatentDirectionFinder
+    from .custom_loss import attribute_preserving_loss
+    from .game_objects import Point, TextPrompt
+    HAS_CORE_MODULES = True
+except ImportError as e:
+    logger.warning(f"Failed to import core modules: {e}")
+    logger.warning("Some faceforge_core functionality will be unavailable")
+    HAS_CORE_MODULES = False
 
-from .game_objects import Point, TextPrompt
-from .sampling import (
-    DistanceSampling,
-    CircleSampling
-)
+try:
+    from dataclasses import dataclass
+    from .fast_sd import fast_diffusion_pipeline
+    HAS_DIFFUSION = True
+except ImportError as e:
+    logger.warning(f"Failed to import diffusion modules: {e}")
+    logger.warning("Diffusion model functionality will be unavailable")
+    HAS_DIFFUSION = False
+
+# Conditionally import these based on availability
+try:
+    import torch
+    import pygame
+    import numpy as np
+    import time
+    from PIL import Image
+except ImportError as e:
+    logger.warning(f"Failed to import dependency: {e}")
+
+try:
+    from .sampling import (
+        DistanceSampling,
+        CircleSampling
+    )
+except ImportError as e:
+    logger.warning(f"Failed to import sampling modules: {e}")
 
 @dataclass
 class GameConfig:

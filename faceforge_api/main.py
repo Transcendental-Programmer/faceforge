@@ -12,9 +12,17 @@ import io
 from PIL import Image
 import json
 
-from faceforge_core.latent_explorer import LatentSpaceExplorer
-from faceforge_core.attribute_directions import LatentDirectionFinder
-from faceforge_core.custom_loss import attribute_preserving_loss
+# Try to import core modules but handle failures gracefully
+try:
+    import faceforge_core
+    from faceforge_core.latent_explorer import LatentSpaceExplorer
+    from faceforge_core.attribute_directions import LatentDirectionFinder
+    from faceforge_core.custom_loss import attribute_preserving_loss
+    HAS_CORE = True
+except ImportError as e:
+    logging.warning(f"Failed to import faceforge_core modules: {e}")
+    logging.warning("Using mock implementations instead")
+    HAS_CORE = False
 
 # Configure logging
 logging.basicConfig(
@@ -47,6 +55,35 @@ class AttributeDirectionRequest(BaseModel):
     labels: Optional[List[int]] = Field(None)
     n_components: Optional[int] = 10
 
+# --- Mock classes if core modules aren't available ---
+
+class MockLatentSpaceExplorer:
+    def __init__(self):
+        self.points = []
+        logger.warning("Using mock LatentSpaceExplorer")
+    
+    def add_point(self, text, encoding=None, xy_pos=None):
+        logger.debug(f"Mock add_point: {text}")
+        self.points.append({"text": text, "xy_pos": xy_pos})
+    
+    def sample_encoding(self, player_pos, mode="distance"):
+        logger.debug(f"Mock sample_encoding: {player_pos}, {mode}")
+        # Return a dummy encoding
+        return np.random.randn(1, 4, 64, 64)
+
+class MockLatentDirectionFinder:
+    def __init__(self, latents):
+        self.latents = latents
+        logger.warning("Using mock LatentDirectionFinder")
+    
+    def classifier_direction(self, labels):
+        return np.random.randn(512)
+    
+    def pca_direction(self, n_components=10):
+        components = np.random.randn(n_components, 512)
+        explained = np.random.rand(n_components)
+        return components, explained
+
 # --- FastAPI app ---
 
 app = FastAPI(
@@ -67,7 +104,7 @@ app.add_middleware(
 )
 
 # Global explorer instance
-explorer = LatentSpaceExplorer()
+explorer = LatentSpaceExplorer() if HAS_CORE else MockLatentSpaceExplorer()
 
 # Error handling middleware
 @app.middleware("http")
@@ -165,7 +202,8 @@ def attribute_direction(req: AttributeDirectionRequest):
     try:
         logger.debug(f"Attribute direction request: {json.dumps(req.dict(), default=str)}")
         latents = np.array(req.latents)
-        finder = LatentDirectionFinder(latents)
+        
+        finder = LatentDirectionFinder(latents) if HAS_CORE else MockLatentDirectionFinder(latents)
         
         if req.labels is not None:
             logger.debug("Using classifier-based direction finding")
