@@ -1,20 +1,57 @@
-from latent_space_explorer import GameConfig, LatentSpaceExplorer
+#!/usr/bin/env python3
+"""
+Main entry point for FaceForge application
+"""
+
+import os
+import logging
+import sys
+import traceback
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+logger = logging.getLogger("faceforge")
+
+def main():
+    """Main function to start the FaceForge application."""
+    try:
+        # Apply the patch for Gradio
+        logger.info("Applying Gradio patch...")
+        try:
+            from patch_gradio_utils import apply_patch
+            if apply_patch():
+                logger.info("Gradio patch applied successfully.")
+            else:
+                logger.warning("Failed to apply Gradio patch. The app may encounter errors.")
+        except Exception as e:
+            logger.warning(f"Error applying Gradio patch: {e}")
+            logger.debug(traceback.format_exc())
+        
+        # Import and run the appropriate app
+        if os.environ.get("FACEFORGE_MODE", "ui").lower() == "api":
+            logger.info("Starting in API mode")
+            from faceforge_api.main import app
+            import uvicorn
+            uvicorn.run(app, host="0.0.0.0", port=8000)
+        else:
+            logger.info("Starting in UI mode")
+            from faceforge_ui.app import create_demo
+            demo = create_demo()
+            demo.launch(server_name="0.0.0.0", share=False)
+            
+    except ImportError as e:
+        logger.critical(f"Import error: {e}. Please check your dependencies.")
+        logger.debug(traceback.format_exc())
+        sys.exit(1)
+    except Exception as e:
+        logger.critical(f"Unexpected error: {e}")
+        logger.debug(traceback.format_exc())
+        sys.exit(1)
 
 if __name__ == "__main__":
-    config = GameConfig(
-        call_every = 100
-    )
-
-    explorer = LatentSpaceExplorer(config)
-
-    explorer.set_prompts(
-        [
-            "A photo of a cat",
-            "A space-aged ferrari",
-            "artwork of the titanic hitting an iceberg",
-            "a photo of a dog"
-        ]
-    )
-
-    while True:
-        explorer.update()
+    main()

@@ -8,6 +8,7 @@ import logging
 import sys
 import traceback
 import os
+import json
 
 # Configure logging
 logging.basicConfig(
@@ -16,6 +17,10 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("faceforge_ui")
+
+# Add more debug loggers for gradio internals
+logging.getLogger("gradio").setLevel(logging.DEBUG)
+logging.getLogger("gradio_client").setLevel(logging.DEBUG)
 
 # API configuration
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
@@ -39,32 +44,47 @@ def generate_image(prompts, mode, player_x, player_y):
             "player_pos": [float(player_x), float(player_y)]
         }
         
+        logger.debug(f"Request payload: {json.dumps(req)}")
+        
         # Make API call
         try:
             resp = requests.post(f"{API_URL}/generate", json=req, timeout=30)
+            logger.debug(f"API response status: {resp.status_code}")
             
             if resp.ok:
-                data = resp.json()
-                
-                if "image" in data:
-                    img_b64 = data["image"]
-                    img_bytes = base64.b64decode(img_b64)
+                try:
+                    data = resp.json()
+                    logger.debug(f"API response structure: {list(data.keys())}")
                     
-                    try:
-                        # For testing, create a simple colored image if decode fails
+                    if "image" in data:
+                        img_b64 = data["image"]
+                        logger.debug(f"Image base64 length: {len(img_b64)}")
+                        img_bytes = base64.b64decode(img_b64)
+                        
                         try:
-                            img = Image.frombytes("RGB", (256, 256), img_bytes)
-                        except:
-                            # Fallback to create a test image
-                            img = Image.new("RGB", (256, 256), (int(player_x*128)+128, 100, int(player_y*128)+128))
-                            
-                        return img, "Image generated successfully"
-                    except Exception as e:
-                        logger.error(f"Error decoding image: {e}")
-                        return None, f"Error decoding image: {str(e)}"
-                else:
-                    return None, "No image in API response"
+                            # For testing, create a simple colored image if decode fails
+                            try:
+                                img = Image.open(io.BytesIO(img_bytes))
+                                logger.debug(f"Image decoded successfully: {img.size} {img.mode}")
+                            except Exception as e:
+                                logger.error(f"Failed to decode image from bytes: {e}, creating test image")
+                                # Fallback to create a test image
+                                img = Image.new("RGB", (256, 256), (int(player_x*128)+128, 100, int(player_y*128)+128))
+                                
+                            return img, "Image generated successfully"
+                        except Exception as e:
+                            logger.error(f"Error processing image: {e}")
+                            logger.debug(traceback.format_exc())
+                            return None, f"Error processing image: {str(e)}"
+                    else:
+                        logger.warning("No image field in API response")
+                        return None, "No image in API response"
+                except Exception as e:
+                    logger.error(f"Error parsing API response: {e}")
+                    logger.debug(f"Raw response: {resp.text[:500]}")
+                    return None, f"Error parsing API response: {str(e)}"
             else:
+                logger.error(f"API error: {resp.status_code}, {resp.text[:500]}")
                 return None, f"API error: {resp.status_code}"
                 
         except requests.exceptions.RequestException as e:
@@ -73,29 +93,67 @@ def generate_image(prompts, mode, player_x, player_y):
             
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
+        logger.debug(traceback.format_exc())
         return None, f"Error: {str(e)}"
 
 # Create a simplified Gradio interface to avoid schema issues
-demo = gr.Interface(
-    fn=generate_image,
-    inputs=[
-        gr.Textbox(label="Prompts (comma-separated)", value="A photo of a cat, A photo of a dog"),
-        gr.Radio(["distance", "circle"], value="distance", label="Sampling Mode"),
-        gr.Slider(-1.0, 1.0, value=0.0, label="Player X"),
-        gr.Slider(-1.0, 1.0, value=0.0, label="Player Y")
-    ],
-    outputs=[
-        gr.Image(label="Generated Image", type="pil"),
-        gr.Textbox(label="Status")
-    ],
-    title="FaceForge Latent Space Explorer",
-    description="Interactively explore and edit faces in latent space.",
-    allow_flagging="never"
-)
+# Use basic components without custom schemas
+def create_demo():
+    with gr.Blocks(title="FaceForge Latent Space Explorer") as demo:
+        gr.Markdown("# FaceForge Latent Space Explorer")
+        gr.Markdown("Interactively explore and edit faces in latent space.")
+        
+        with gr.Row():
+            with gr.Column(scale=3):
+                prompts_input = gr.Textbox(
+                    label="Prompts (comma-separated)", 
+                    value="A photo of a cat, A photo of a dog",
+                    lines=2
+                )
+                mode_input = gr.Radio(
+                    choices=["distance", "circle"],
+                    value="distance",
+                    label="Sampling Mode"
+                )
+                player_x_input = gr.Slider(
+                    minimum=-1.0,
+                    maximum=1.0,
+                    value=0.0,
+                    step=0.1,
+                    label="Player X"
+                )
+                player_y_input = gr.Slider(
+                    minimum=-1.0,
+                    maximum=1.0,
+                    value=0.0,
+                    step=0.1,
+                    label="Player Y"
+                )
+                
+                generate_btn = gr.Button("Generate")
+                
+            with gr.Column(scale=5):
+                output_image = gr.Image(label="Generated Image")
+                output_status = gr.Textbox(label="Status")
+                
+        generate_btn.click(
+            fn=generate_image,
+            inputs=[prompts_input, mode_input, player_x_input, player_y_input],
+            outputs=[output_image, output_status]
+        )
+        
+    return demo
 
+# Only start if this file is run directly, not when imported
 if __name__ == "__main__":
-    logger.info("Starting Gradio app")
+    logger.info("Starting Gradio app directly from app.py")
     try:
+        # Print Gradio version for debugging
+        logger.info(f"Gradio version: {gr.__version__}")
+        
+        # Create demo
+        demo = create_demo()
+        
         # Check if we're running in Hugging Face Spaces
         if "SPACE_ID" in os.environ:
             logger.info("Running in Hugging Face Space")

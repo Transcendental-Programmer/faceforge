@@ -4,8 +4,8 @@ emoji: 🧑‍🎨
 colorFrom: indigo
 colorTo: pink
 sdk: gradio
-sdk_version: "4.27.0"
-app_file: faceforge_ui/app.py
+sdk_version: "4.44.1"
+app_file: main.py
 pinned: false
 ---
 
@@ -19,7 +19,7 @@ FaceForge is ready to run as a Gradio app on [Hugging Face Spaces](https://huggi
 1. **Push your code to a public GitHub repository.**
 2. **Create a new Space** at https://huggingface.co/spaces (choose the Gradio SDK or Docker SDK).
 3. **Add your `requirements.txt` and the provided `Dockerfile` to your repo.**
-4. **Set the entrypoint to `faceforge_ui/app.py`** (the Gradio app).
+4. **Set the entrypoint to `main.py`** (which handles both the API and UI components).
 5. **Deploy!** Your app will be live at `https://<your-username>.hf.space`.
 
 ### Example Dockerfile (already included):
@@ -31,7 +31,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 7860
-CMD ["python", "faceforge_ui/app.py"]
+ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "main.py"]
 ```
 
 ## Local Development (Optional)
@@ -40,7 +42,12 @@ You can still run FaceForge locally:
 
 ```bash
 pip install -r requirements.txt
-python faceforge_ui/app.py
+python main.py
+```
+
+To run in API-only mode:
+```bash
+FACEFORGE_MODE=api python main.py
 ```
 
 ## Features
@@ -61,6 +68,20 @@ Run all tests with:
 ```bash
 pytest tests/
 ```
+
+## Debugging
+
+If you encounter Gradio schema-related errors like:
+```
+TypeError: argument of type 'bool' is not iterable
+```
+
+The application includes a patch that should fix the issue automatically. This patch addresses a known issue with schema processing in older Gradio versions.
+
+Recommended steps to diagnose UI issues:
+1. Check the logs for detailed error information
+2. Ensure you're using Gradio version 4.44.1 or newer (`pip install --upgrade gradio==4.44.1`)
+3. Try running in API-only mode to isolate the issue
 
 ## Notes
 - The backend and frontend are fully integrated for Spaces.

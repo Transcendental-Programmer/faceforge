@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 import numpy as np
 import base64
 import logging
@@ -10,6 +10,7 @@ import sys
 import traceback
 import io
 from PIL import Image
+import json
 
 from faceforge_core.latent_explorer import LatentSpaceExplorer
 from faceforge_core.attribute_directions import LatentDirectionFinder
@@ -27,14 +28,14 @@ logger = logging.getLogger("faceforge_api")
 
 class PointIn(BaseModel):
     text: str
-    encoding: Optional[List[float]] = None
-    xy_pos: Optional[List[float]] = None
+    encoding: Optional[List[float]] = Field(None)
+    xy_pos: Optional[List[float]] = Field(None)
 
 class GenerateRequest(BaseModel):
     prompts: List[str]
-    positions: Optional[List[List[float]]] = None
+    positions: Optional[List[List[float]]] = Field(None)
     mode: str = "distance"
-    player_pos: Optional[List[float]] = None
+    player_pos: Optional[List[float]] = Field(None)
 
 class ManipulateRequest(BaseModel):
     encoding: List[float]
@@ -43,7 +44,7 @@ class ManipulateRequest(BaseModel):
 
 class AttributeDirectionRequest(BaseModel):
     latents: List[List[float]]
-    labels: Optional[List[int]] = None
+    labels: Optional[List[int]] = Field(None)
     n_components: Optional[int] = 10
 
 # --- FastAPI app ---
@@ -81,9 +82,12 @@ def read_root():
     return {"message": "FaceForge API is running"}
 
 @app.post("/generate")
-def generate_image(req: GenerateRequest):
+async def generate_image(req: GenerateRequest):
     try:
-        logger.debug(f"Generate image request: {req}")
+        logger.debug(f"Generate image request: {json.dumps(req.dict(), default=str)}")
+        
+        # Log request schema for debugging
+        logger.debug(f"Request schema: {GenerateRequest.schema_json()}")
         
         # Clear existing points
         explorer.points = []
@@ -123,8 +127,13 @@ def generate_image(req: GenerateRequest):
         pil_img.save(buffer, format="PNG")
         img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         
+        # Prepare response
+        response = {"status": "success", "image": img_b64}
+        logger.debug(f"Response structure: {list(response.keys())}")
+        logger.debug(f"Image base64 length: {len(img_b64)}")
+        
         logger.debug("Image generated successfully")
-        return {"status": "success", "image": img_b64}
+        return response
         
     except Exception as e:
         logger.error(f"Error in generate_image: {str(e)}")
@@ -134,7 +143,7 @@ def generate_image(req: GenerateRequest):
 @app.post("/manipulate")
 def manipulate(req: ManipulateRequest):
     try:
-        logger.debug(f"Manipulate request: {req}")
+        logger.debug(f"Manipulate request: {json.dumps(req.dict(), default=str)}")
         encoding = np.array(req.encoding)
         direction = np.array(req.direction)
         manipulated = encoding + req.alpha * direction
@@ -148,7 +157,7 @@ def manipulate(req: ManipulateRequest):
 @app.post("/attribute_direction")
 def attribute_direction(req: AttributeDirectionRequest):
     try:
-        logger.debug(f"Attribute direction request: {req}")
+        logger.debug(f"Attribute direction request: {json.dumps(req.dict(), default=str)}")
         latents = np.array(req.latents)
         finder = LatentDirectionFinder(latents)
         

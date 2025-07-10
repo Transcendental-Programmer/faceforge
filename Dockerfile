@@ -1,20 +1,26 @@
 FROM python:3.10-slim
 
-# Install system dependencies
+# Install dependencies
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
+# Set working directory
 WORKDIR /app
 
-# Copy requirements and install
+# Copy requirements
 COPY requirements.txt ./
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all code
+# Copy application code
 COPY . .
 
-# Expose Gradio port
+# Expose port
 EXPOSE 7860
 
-# Run Gradio app
-CMD ["python", "faceforge_ui/app.py"] 
+# Set environment variables
+ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED=1
+
+# Start app (with the patch applied)
+CMD ["python", "main.py"] 
