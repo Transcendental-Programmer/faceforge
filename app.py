@@ -58,6 +58,12 @@ def create_app():
         logger.info("Mounting API at /api")
         app.mount("/api", api_app)
         
+        # Set BASE_URL to empty string for HF Spaces deployment
+        # This ensures the UI makes relative API requests
+        if "BASE_URL" not in os.environ:
+            os.environ["BASE_URL"] = ""
+            logger.info("Setting BASE_URL to empty string for integrated app")
+            
         # Create Gradio UI
         logger.info("Creating Gradio UI")
         demo = create_demo()

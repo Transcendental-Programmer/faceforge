@@ -21,6 +21,7 @@ ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 ENV API_URL="/api"
 ENV MOCK_API="true"
+ENV BASE_URL=""
 
 # Start app (with the patch applied)
 CMD ["python", "app.py"] 

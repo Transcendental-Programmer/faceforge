@@ -26,7 +26,9 @@ logging.getLogger("gradio_client").setLevel(logging.DEBUG)
 # In HF Spaces, we need to use a relative path since both UI and API run on the same server
 # For local development with separate servers, the env var can be set to http://localhost:8000
 API_URL = os.environ.get("API_URL", "/api")
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:7860")
 logger.info(f"Using API URL: {API_URL}")
+logger.info(f"Using BASE URL: {BASE_URL}")
 
 def generate_image(prompts, mode, player_x, player_y):
     """Generate an image based on prompts and player position."""
@@ -59,15 +61,16 @@ def generate_image(prompts, mode, player_x, player_y):
                 
             # Determine the base URL for the API
             if API_URL.startswith("/"):
-                # Relative URL, construct the full URL based on the request context
-                # For Gradio apps, we'll just use a relative path
-                base_url = API_URL
+                # Relative URL, construct the full URL with the base URL
+                # Note: BASE_URL should NOT have a trailing slash
+                full_url = f"{BASE_URL}{API_URL}/generate"
+                logger.debug(f"Constructed full URL: {full_url}")
             else:
                 # Absolute URL, use as is
-                base_url = API_URL
-                
-            logger.debug(f"Making request to: {base_url}/generate")
-            resp = requests.post(f"{base_url}/generate", json=req, timeout=30)
+                full_url = f"{API_URL}/generate"
+            
+            logger.debug(f"Making request to: {full_url}")
+            resp = requests.post(full_url, json=req, timeout=30)
             logger.debug(f"API response status: {resp.status_code}")
             
             if resp.ok:

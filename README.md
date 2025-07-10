@@ -24,16 +24,19 @@ FaceForge is ready to run as a Gradio app on [Hugging Face Spaces](https://huggi
 
 ### Example Dockerfile (already included):
 ```Dockerfile
-FROM python:3.10-slim
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+FROM huggingface/transformers:latest
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir transformers
 COPY . .
 EXPOSE 7860
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
-CMD ["python", "main.py"]
+ENV API_URL="/api"
+ENV MOCK_API="true"
+ENV BASE_URL=""
+CMD ["python", "app.py"]
 ```
 
 ## Local Development (Optional)
@@ -95,24 +98,33 @@ The application includes a patch that should fix the issue automatically. This p
 
 If you see errors like:
 ```
-Request failed: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /generate
+Invalid URL '/api/generate': No scheme supplied. Perhaps you meant https:///api/generate?
 ```
 
-This means the UI can't connect to the API. In the integrated version, the API is available at `/api/generate` rather than a separate server.
+This indicates an issue with URL formatting. The application should handle this automatically with the following settings:
 
-To fix this:
-1. Ensure you're using the integrated version by running `python main.py`
-2. If you need to run the API separately, set the API_URL environment variable:
-   ```bash
-   API_URL=http://localhost:8000 python faceforge_ui/app.py
-   ```
+1. For the integrated app, set `BASE_URL=""` in the environment
+2. For separate UI/API components, set `BASE_URL="http://localhost:7860"` (or your server URL)
+3. Using relative URLs within the same server requires the correct base URL configuration
+
+The updated app uses proper URL formatting that works in both integrated and separated modes.
+
+#### Missing Dependencies
+
+If you see errors about missing Python packages like `transformers`, you have options:
+
+1. Install the missing package: `pip install transformers`
+2. Use mock mode: Set `MOCK_API="true"` in environment variables
+3. Use the Docker image which includes all dependencies: `docker build -t faceforge .`
 
 #### Environment Variables
 
-- `MOCK_API`: Set to "true" to use mock API responses (for testing without API)
+- `MOCK_API`: Set to "true" to use mock API responses (for testing without ML dependencies)
 - `API_URL`: Override the API endpoint URL
+- `BASE_URL`: Base URL for relative API paths (leave empty for integrated deployment)
 - `PORT`: Set the port for the server (default: 7860)
 
 ## Notes
 - The backend and frontend are fully integrated for Spaces deployment.
+- The application will use the actual ML framework when dependencies are available, and fall back to mock implementations when they're missing.
 - For custom model integration, edit the core and backend modules as needed.
