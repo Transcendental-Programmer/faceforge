@@ -1,37 +1,56 @@
 # faceforge
 Interactive latent space editor for face generation using pretrained GANs and diffusion models.
 
-# Latent Space Exploration
+## 🚀 Deploy on Hugging Face Spaces (Recommended)
 
-You can find cool things moving between encoded prompts in a conditional diffusion models latent space. This repository is for doing that. 
+FaceForge is ready to run as a Gradio app on [Hugging Face Spaces](https://huggingface.co/spaces):
 
-# Usage  
+1. **Push your code to a public GitHub repository.**
+2. **Create a new Space** at https://huggingface.co/spaces (choose the Gradio SDK or Docker SDK).
+3. **Add your `requirements.txt` and the provided `Dockerfile` to your repo.**
+4. **Set the entrypoint to `faceforge_ui/app.py`** (the Gradio app).
+5. **Deploy!** Your app will be live at `https://<your-username>.hf.space`.
 
-`pip install -r requirements.txt && python -m main`  
-  
-Run the above command to explore. Feel free to mess around with the config to change how sampling is done, font sizes, etc.  
-Controls:  
-Q/E: zoom out/in  
-WASD: move up/left/down/right  
-Click anywhere to generate a new image  
-Click an existing point/node to select it  
-T: modify prompt in selected node  
-O: delete selected node  
-P: create a new node  
-Right click an existing point/node to move it around  
-M: Switch between sampling modes
-  
-# Notes  
+### Example Dockerfile (already included):
+```Dockerfile
+FROM python:3.10-slim
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 7860
+CMD ["python", "faceforge_ui/app.py"]
+```
 
-The zero vector for the encoding space corresponds to a kind of "garden". This corresponds to the negative prompt used in CFG. You can see this at the center of circle mode or when going very far from some points in distance mode.  
-  
-In circle mode, having multiple prompts on the opposite side from your generation results in heavy negative coefficients which often knocks generation into garbage area of latent space.  
-To stay inside space of plausible generations, try to balance all sides of the circle.   
-  
-In distance mode, your generation will go towards the zero vector if it is not close to any points, because it falls of to 0 with inverse of square distance to each point.
-  
-# Sampling Modes  
-  
-Distance sampling assigns weights to each encoding based on its square distance from your control point  
-  
-Circle sampling assigns weights to each encoding based on cosine similarity with your control point. Norm is factored in so this is basically just a dot product.
+## Local Development (Optional)
+
+You can still run FaceForge locally:
+
+```bash
+pip install -r requirements.txt
+python faceforge_ui/app.py
+```
+
+## Features
+- Latent space exploration and manipulation
+- Attribute direction discovery (PCA/classifier)
+- Custom attribute-preserving loss
+- Modular, testable core
+- Gradio UI for interactive exploration
+
+## Controls (Gradio UI)
+- Enter prompts (comma-separated)
+- Choose sampling mode (distance/circle)
+- Adjust player position sliders
+- Click "Generate" to see results
+
+## Testing
+Run all tests with:
+```bash
+pytest tests/
+```
+
+## Notes
+- The backend and frontend are fully integrated for Spaces.
+- For custom model integration, edit the core and backend modules as needed.
